@@ -23,8 +23,6 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 
-
-vendor/
 .env
 .env.*
 .phpunit.result.cache

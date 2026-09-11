@@ -6,8 +6,9 @@ import {
   TextInput,
   TouchableOpacity,
 } from "react-native";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { Link } from "expo-router";
+import { ChatContext } from "@/contexts/chatContext";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "@expo/vector-icons/FontAwesome";
 import UserContent from "../../component/userContent";
@@ -22,7 +23,17 @@ type ChatMessage = {
   content: string;
 };
 
+type ChatHistoryItem = {
+  title: string;
+  id: string;
+};
+
 export default function ChatTab() {
+  const chatContext = useContext(ChatContext);
+  if (!chatContext) {
+    throw new Error("ChatTab must be rendered inside ChatContext.Provider");
+  }
+  const {chatHistory, setChatHistory} = chatContext;
   const route = useRoute();
   const [loader, setLoader] = useState(true);
   const [loader1, setLoader1] = useState(false);
@@ -37,7 +48,7 @@ export default function ChatTab() {
       setLoader1(true);
       const response = await api.get(`/chat/messages/${id}`);
       console.log("Chat messages:", response.data.messages);
-      setChatMessages( response.data.messages);
+      setChatMessages(response.data.messages);
       setLoader1(false);
     } catch (error) {
       console.error("Error fetching chat messages:", error);
@@ -54,17 +65,26 @@ export default function ChatTab() {
       }
       const res = await api.post(`/chat/send`, payload);
 
-      const normalizeResponse : ChatMessage[] = res.data.conversation.map((m : ChatMessage)=>({
-        role: m.role ,
-        content: m.content 
-      }))
+      const normalizeResponse: ChatMessage[] = res.data.conversation.map(
+        (m: ChatMessage) => ({
+          role: m.role,
+          content: m.content,
+        }),
+      );
+      
+      const HistoryResponse: ChatHistoryItem ={
+          title: content,
+          id: res.data.conversation[0].conversation_id
+        };
+      setChatHistory(prev => [HistoryResponse, ...prev]);
+
       if (!conversation_id && res.data.conversation[0].conversation_id) {
-        console.log(res.data.conversation[0].conversation_id)
-        setId(res.data.conversation.conversation_id);
+        console.log(res.data.conversation[0].conversation_id);
+        setId(res.data.conversation[0].conversation_id);
       }
       // Append new message
-      console.log(res.data.conversation)
-      setChatMessages(prev => [...prev, ...normalizeResponse]);
+      console.log(res.data.conversation);
+      setChatMessages(normalizeResponse);
 
       setContent(""); // clear input
     } catch (err) {
@@ -80,8 +100,11 @@ export default function ChatTab() {
       console.log("entered useeffect");
       setId(paramsId);
       fetchChatMessages(paramsId);
+    } else {
+      setId("");
+      setLoader(true);
+      setChatMessages([]);
     }
-    console.log("exit useeffect");
     return;
   }, [paramsId]);
 
@@ -101,7 +124,6 @@ export default function ChatTab() {
             <RoboIcon name="robot" size={100} color="white" />
           </View>
         ) : (
-          
           <FlatList
             data={chatMessages}
             keyExtractor={(item, index) => index.toString()}
@@ -124,10 +146,17 @@ export default function ChatTab() {
               return null;
             }}
             contentContainerStyle={{ paddingBottom: 150 }}
+            ListFooterComponent={
+              loader1 ? (
+                <ActivityIndicator
+                  size="large"
+                  color="white"
+                  style={{ marginVertical: 20 }}
+                />
+              ) : null
+            }
           />
         )}
-        {loader1 && <ActivityIndicator className="mb-25" size={"large"} color={"white"}
-        />}
         <View className="absolute bottom-5 left-5 right-5 rounded-lg bg-gray-800 p-3 mt-10 flex-row items-center">
           <TextInput
             className="text-white h-auto w-full p-2 rounded-lg bg-gray-700"
@@ -141,12 +170,20 @@ export default function ChatTab() {
             numberOfLines={4}
             textAlignVertical="top"
           />
-          <TouchableOpacity
-            onPress={() => sendContent(content, id)}
-            className="ml-2 bg-blue-600 p-2 rounded-lg"
-          >
-            <Text className="text-white">Send</Text>
-          </TouchableOpacity>
+          {loader1 ? (
+            <ActivityIndicator
+              size="small"
+              color="white"
+              style={{ marginLeft: 10 }}
+            />
+          ) : (
+            <TouchableOpacity
+              onPress={() => sendContent(content, id)}
+              className="ml-2 bg-blue-600 p-2 rounded-lg"
+            >
+              <Text className="text-white">Send</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </SafeAreaView>

@@ -1,5 +1,5 @@
 import { View, FlatList, Text, ActivityIndicator } from "react-native";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useContext } from "react";
 import { Link } from "expo-router";
 import Icon from "@expo/vector-icons/FontAwesome";
 import { useFocusEffect } from "@react-navigation/native";
@@ -8,6 +8,7 @@ import ChatHistory from "../../component/chatHistory";
 import api from "../../api/chatBot";
 import RoboIcon from "@expo/vector-icons/FontAwesome6";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { ChatContext } from "@/contexts/chatContext";
 
 type ChatHistoryItem = {
   title: string;
@@ -15,14 +16,18 @@ type ChatHistoryItem = {
 };
 
 export default function SideTab() {
-  const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([]);
+  // const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([]);
+  const chatContext = useContext(ChatContext);
+  if (!chatContext) {
+    throw new Error("SideTab must be rendered inside ChatContext.Provider");
+  }
+  const { chatHistory, setChatHistory } = chatContext;
   const [loader, setLoader] = useState(true);
 
   const storeChatHistory = async (chatHistory: ChatHistoryItem[]) => {
     try {
       await AsyncStorage.setItem("chatHistory", JSON.stringify(chatHistory));
       console.log("Chat history stored successfully:", chatHistory);
-      setChatHistory(chatHistory as ChatHistoryItem[]);
       setLoader(false);
     } catch (error) {
       console.error("Error storing chat history:", error);
@@ -37,7 +42,6 @@ export default function SideTab() {
         console.log("chat retrieved from storage:", storedChat);
         const parsedChatHistory = JSON.parse(storedChat) as ChatHistoryItem[];
         setChatHistory(parsedChatHistory);
-        fetchChatHistory();
         setLoader(false);
       } else {
         fetchChatHistory();
@@ -53,8 +57,16 @@ export default function SideTab() {
       setLoader(true);
       const response = await api.get("/chat/conversations");
       console.log("Chat history:", response.data.conversations);
-      storeChatHistory(response.data.conversations as ChatHistoryItem[]);
-    } catch (error) {
+      const normalizeResponse: ChatHistoryItem[] = response.data.conversations.map(
+        (c: ChatHistoryItem) => ({
+          title: c.title,
+          id: c.id,
+        }),
+      );
+      const reverseResponse = [...normalizeResponse].reverse();
+      setChatHistory(reverseResponse);
+      storeChatHistory(reverseResponse);
+    }catch (error) {
       console.error("Error fetching chat history:", error);
     }
   };
@@ -63,16 +75,16 @@ export default function SideTab() {
     <ChatHistory title={item.title} id={item.id} />
   );
 
-  useFocusEffect(
-    useCallback(() => {
+  // useFocusEffect(
+  //   useCallback(() => {
+  //     fetchChatHistory();
+  //     getChatHistory();
+  //   }, [])
+  // );
+  useEffect(() => {
     getChatHistory();
     fetchChatHistory();
-  }, [])
-  )
-  // useEffect(() => {
-  //   getChatHistory();
-  //   fetchChatHistory();
-  // }, []);
+  }, []);
   return (
     <SafeAreaView className="flex-1">
       <View className="text-lg flex-row justify-center items-center h-auto p-4 bg-gray-200">
@@ -89,6 +101,7 @@ export default function SideTab() {
             data={chatHistory}
             renderItem={renderHistoryItem}
             keyExtractor={(item) => item.id}
+            contentContainerStyle={{ paddingBottom: 65}}
           />
         )}
       </View>

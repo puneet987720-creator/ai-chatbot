@@ -25,7 +25,7 @@ public function chatCompletion(array $messages): string
 {
     $apiKey = env('GEMINI_API_KEY'); // store safely in .env
     $baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/';
-    $model   = 'gemini-3.6-flash';   // or another Gemini model
+    $model   = 'gemini-3.1-flash-lite';   // or another Gemini model
 
     // Gemini expects "contents" with "parts"
     $contents = [];

@@ -18,27 +18,29 @@ class ChatbotController extends Controller
     public function __construct(
         protected OpenAiService $openAI,
         protected VectorSearchService $vectorSearch
-    ){}
+    ) {
+    }
 
     public function sendMessage(Request $request): JsonResponse
     {
         $request->validate([
-            'message'=>'required|string',
-            'conversation_id'=>'nullable|uuid|exists:conversation,id',
+            'message' => 'required|string',
+            'conversation_id' => 'nullable|uuid|exists:conversation,id',
         ]);
 
+        // $user = 2;
         $user = auth('sanctum')->user();
-        if(!$user){
-            return response()->json(['error'=>'Unauthorized'],401);
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        $conversationId= $request->input('conversation_id');
-        if($conversationId){
+        $conversationId = $request->input('conversation_id');
+        if ($conversationId) {
             $conversation = Conversation::where('id', $conversationId)->first();
-            if(!$conversation){
+            if (!$conversation) {
                 return response()->json(['error' => 'conversation not found'], 444);
             }
-        } else{
+        } else {
             $conversation = Conversation::create([
                 'id' => (string) Str::uuid(),
                 'user_id' => $user->id,
@@ -48,24 +50,24 @@ class ChatbotController extends Controller
 
         $context = $this->vectorSearch->findRelevantContext($request->message);
 
-        $systemMessage =[
+        $systemMessage = [
             'role' => 'model',
             'content' => " you are a helpful assistant. Use the provided context to answer questions.\n\nContext:\n{$context}"
         ];
 
         $history = $conversation->messages()
-        ->latest()
-        ->take(10)
-        ->get()
-        ->reverse()
-        ->values()
-        ->map(fn($msg)=> ['role'=>$msg->role,'content'=>$msg->content])
-        ->toArray();
+            ->latest()
+            ->take(10)
+            ->get()
+            ->reverse()
+            ->values()
+            ->map(fn($msg) => ['role' => $msg->role, 'content' => $msg->content])
+            ->toArray();
 
         $messagePayload = array_merge([$systemMessage], $history, [
             [
-            'role'=>'user',
-            'content'=>$request->message
+                'role' => 'user',
+                'content' => $request->message
             ]
         ]);
 
@@ -83,39 +85,55 @@ class ChatbotController extends Controller
 
         $apiResponse = Message::where('conversation_id', $conversation->id)->get();
         return response()->json([
-            'conversation'=>$apiResponse
+            'conversation' => $apiResponse
         ]);
     }
 
-    public function getUserConversations(){
+    public function getUserConversations()
+    {
         $user = auth('sanctum')->user();
-        if(!$user){
-            return response()->json(['error'=>'Unauthorized'],401);
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
         }
-        $conversation = Conversation::where('user_id',$user->id)->get();
-        if(!$conversation){
-            return response()->json(['error'=>'No conversations found'],404);
+        $conversation = Conversation::where('user_id', $user->id)->get();
+        if (!$conversation) {
+            return response()->json(['error' => 'No conversations found'], 404);
         }
         return response()->json([
-            'conversations'=>$conversation
+            'conversations' => $conversation
         ]);
     }
 
-    public function getConversationMessages($conversationId){
+    public function getConversationMessages($conversationId)
+    {
         $user = auth('sanctum')->user();
-        if(!$user){
-            return response()->json(['error'=>'Unauthorized'],401);
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
         }
-        $conversation = Conversation::where('user_id',$user->id)->get();
-        if(!$conversation){
-            return response()->json(['error'=>'No conversations found'],404);
+        $conversation = Conversation::where('user_id', $user->id)->get();
+        if (!$conversation) {
+            return response()->json(['error' => 'No conversations found'], 404);
         }
-        $messages = Message::where('conversation_id',$conversationId)->get();
-        if(!$messages){
-            return response()->json(['error'=>'No messages found'],404);
+        $messages = Message::where('conversation_id', $conversationId)->get();
+        if (!$messages) {
+            return response()->json(['error' => 'No messages found'], 404);
         }
         return response()->json([
-            'messages'=>$messages,
-            ]);
+            'messages' => $messages,
+        ]);
+    }
+
+    public function deleteConversation($conversationId)
+    {
+        $user = auth('sanctum')->user();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+        $conversation = Conversation::where('id', $conversationId)->first();
+        if (!$conversation) {
+            return response()->json(['error' => 'Conversation not found'], 404);
+        }
+        $conversation->delete();
+        return response()->json(['message' => 'Conversation deleted successfully']);
     }
 }
