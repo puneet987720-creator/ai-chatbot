@@ -16,6 +16,7 @@ api.interceptors.request.use(
       const token = await getToken();
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+
       }
     } catch (error) {
       console.error("Error adding token to request:", error);

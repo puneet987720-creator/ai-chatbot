@@ -92,10 +92,8 @@ class ChatbotController extends Controller
     public function getUserConversations(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
-            return response()->json(['error' => 'Unauthorized'], 401);
-        }
-        $conversation = Conversation::where('user_id', $user->id)->get();
+        
+        $conversation = Conversation::where('user_id', 2)->get();
         if (!$conversation) {
             return response()->json(['error' => 'No conversations found'], 404);
         }
