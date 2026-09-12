@@ -89,9 +89,9 @@ class ChatbotController extends Controller
         ]);
     }
 
-    public function getUserConversations()
+    public function getUserConversations(Request $request)
     {
-        $user = auth('sanctum')->user();
+        $user = $request->user();
         if (!$user) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
@@ -104,9 +104,9 @@ class ChatbotController extends Controller
         ]);
     }
 
-    public function getConversationMessages($conversationId)
+    public function getConversationMessages(Request $request, $conversationId)
     {
-        $user = auth('sanctum')->user();
+        $user = $request->user();
         if (!$user) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
@@ -123,9 +123,9 @@ class ChatbotController extends Controller
         ]);
     }
 
-    public function deleteConversation($conversationId)
+    public function deleteConversation(Request $request, $conversationId)
     {
-        $user = auth('sanctum')->user();
+        $user = $request->user();
         if (!$user) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
