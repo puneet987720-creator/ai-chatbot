@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\User;
-use App\Services\OpenAIService;
+use App\Services\OpenAiService;
 use App\Services\VectorSearchService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
