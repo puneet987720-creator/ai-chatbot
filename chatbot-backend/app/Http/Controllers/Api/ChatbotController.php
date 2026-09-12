@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\controller;
+use App\Http\Controllers\Controller;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\User;
@@ -92,8 +92,11 @@ class ChatbotController extends Controller
     public function getUserConversations(Request $request)
     {
         $user = $request->user();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
         
-        $conversation = Conversation::where('user_id', 2)->get();
+        $conversation = Conversation::where('user_id', $user->id)->get();
         if (!$conversation) {
             return response()->json(['error' => 'No conversations found'], 404);
         }
