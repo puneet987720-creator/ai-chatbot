@@ -23,6 +23,7 @@ export default function SideTab() {
   }
   const { chatHistory, setChatHistory } = chatContext;
   const [loader, setLoader] = useState(true);
+  const [loader1, setLoader1] = useState(false);
 
   const storeChatHistory = async (chatHistory: ChatHistoryItem[]) => {
     try {
@@ -34,6 +35,10 @@ export default function SideTab() {
       setLoader(false);
     }
   };
+
+  const handleGoogleSignIn = async () => {
+    setLoader1(true);
+  }
 
   const getChatHistory = async () => {
     try {
@@ -57,17 +62,17 @@ export default function SideTab() {
       setLoader(true);
       const response = await api.get("/chat/conversations");
       console.log("Chat history:", response.data.conversations);
-      const normalizeResponse: ChatHistoryItem[] = response.data.conversations.map(
-        (c: ChatHistoryItem) => ({
+      const normalizeResponse: ChatHistoryItem[] =
+        response.data.conversations.map((c: ChatHistoryItem) => ({
           title: c.title,
           id: c.id,
-        }),
-      );
+        }));
       const reverseResponse = [...normalizeResponse].reverse();
       setChatHistory(reverseResponse);
       storeChatHistory(reverseResponse);
-    }catch (error) {
+    } catch (error) {
       console.error("Error fetching chat history:", error);
+      setLoader(false);
     }
   };
 
@@ -87,11 +92,19 @@ export default function SideTab() {
   }, []);
   return (
     <SafeAreaView className="flex-1">
-      <View className="text-lg flex-row justify-center items-center h-auto p-4 bg-gray-200">
+      <View className="text-lg flex-row justify-between items-center h-auto p-4 bg-gray-200">
         <Link href="/chatTab">
           <Icon name="plus" size={20} color="black" />
           <Text className="ml-2 text-lg color-black">New Chat</Text>
         </Link>
+        {loader1 ? (
+          <ActivityIndicator size={"large"} color={"black"} />
+        ) : (
+        <Link onPress={handleGoogleSignIn} href="http://127.0.0.1:8000/api/auth/google">
+          <Icon name="google" size={30} color="black" />
+          <Text className=" ml-2 text-lg color-black">Another Account</Text>
+        </Link>
+        )}
       </View>
       <View className="text-lg flex-column justify-center items-center h-full">
         {loader ? (
@@ -101,7 +114,7 @@ export default function SideTab() {
             data={chatHistory}
             renderItem={renderHistoryItem}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={{ paddingBottom: 65}}
+            contentContainerStyle={{ paddingBottom: 65 }}
           />
         )}
       </View>
