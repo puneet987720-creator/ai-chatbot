@@ -1,11 +1,18 @@
-import { Text, View, ActivityIndicator } from "react-native";
+import {TouchableOpacity, Text, View, ActivityIndicator, Alert } from "react-native";
 import { useState, useEffect } from "react";
 import { Link } from "expo-router";
 import Icon from "@expo/vector-icons/FontAwesome";
 import RoboIcon from '@expo/vector-icons/FontAwesome6';
 import api from ".././api/chatBot";
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
+import * as SecureStore from 'expo-secure-store';
 import {useRoute} from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+
+WebBrowser.maybeCompleteAuthSession();
+// REPLACE WITH YOUR LIVE LARAVEL API DOMAIN
+const LARAVEL_API_URL = 'https://ai-chatbot-t5fk.onrender.com/api';
 
 export default function Index() {
   const [loader, setLoader] = useState(false);
@@ -37,9 +44,44 @@ export default function Index() {
       console.error("Error retrieving token from storage:", error);
     }
   }
-  const handleGoogleSignIn = async () => {
-    setLoader(true);
-  }
+  const handleGoogleLogin = async () => {
+    try {
+      setLoader(true);
+
+      // 1. Generate deep link target: "myapp://auth-callback"
+      const redirectUrl = Linking.createURL('auth-callback');
+
+      // 2. Build full Laravel endpoint URL passing target deep link as parameter
+      const authUrl = `${LARAVEL_API_URL}/auth/google?redirect_url=${encodeURIComponent(redirectUrl)}`;
+
+      // 3. Open in-app browser session and await user login
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
+
+      // 4. Process returning deep-link URL
+      if (result.type === 'success' && result.url) {
+        const { queryParams } = Linking.parse(result.url);
+        const Token = queryParams?.token;
+        const tokenValue = Array.isArray(Token) ? Token[0] : Token;
+
+        if (tokenValue) {
+          // 5. Store API token securely on device
+          await SecureStore.setItemAsync('userToken', tokenValue);
+          
+          Alert.alert('Success', 'Logged in with Google successfully!');
+          
+          // Navigate to main app screen (e.g., Home)
+          // navigation.navigate('Home');
+        } else {
+          Alert.alert('Error', 'Token not found in login callback response.');
+        }
+      }
+    } catch (error) {
+      console.error('Google Auth Error:', error);
+      Alert.alert('Authentication Failed', 'An error occurred during Google Sign-In.');
+    } finally {
+      setLoader(false);
+    }
+  };
 
   useEffect(() => {
     getTokenFromStorage();
@@ -68,9 +110,8 @@ export default function Index() {
           <ActivityIndicator size="large" color="#ffffff" className="ml-2" />
         </View>
       ) : (
-        <Link
-          onPress={handleGoogleSignIn}
-          href="http://127.0.0.1:8000/api/auth/google"
+        <TouchableOpacity
+          onPress={handleGoogleLogin}
         >
           <View className="flex-row bg-blue-400 justify-center rounded-lg items-center h-auto w-auto p-4">
             <Icon name="google" size={30} color="white" />
@@ -78,7 +119,7 @@ export default function Index() {
               Sign in with Google
             </Text>
           </View>
-        </Link>
+        </TouchableOpacity>
       )}
     </View>
   );

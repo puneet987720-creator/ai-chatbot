@@ -1,6 +1,9 @@
-import { View, FlatList, Text, ActivityIndicator } from "react-native";
+import { View,Alert, FlatList, Text, ActivityIndicator, TouchableOpacity } from "react-native";
 import { useState, useEffect, useCallback, useContext } from "react";
 import { Link } from "expo-router";
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
+import * as SecureStore from 'expo-secure-store';
 import Icon from "@expo/vector-icons/FontAwesome";
 import { useFocusEffect } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -14,6 +17,10 @@ type ChatHistoryItem = {
   title: string;
   id: string;
 };
+
+WebBrowser.maybeCompleteAuthSession();
+// REPLACE WITH YOUR LIVE LARAVEL API DOMAIN
+const LARAVEL_API_URL = 'https://ai-chatbot-t5fk.onrender.com/api';
 
 export default function SideTab() {
   // const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([]);
@@ -36,8 +43,43 @@ export default function SideTab() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    setLoader1(true);
+  const handleGoogleLogin = async () => {
+     try {
+          setLoader1(true);
+    
+          // 1. Generate deep link target: "myapp://auth-callback"
+          const redirectUrl = Linking.createURL('auth-callback');
+    
+          // 2. Build full Laravel endpoint URL passing target deep link as parameter
+          const authUrl = `${LARAVEL_API_URL}/auth/google?redirect_url=${encodeURIComponent(redirectUrl)}`;
+    
+          // 3. Open in-app browser session and await user login
+          const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
+    
+          // 4. Process returning deep-link URL
+          if (result.type === 'success' && result.url) {
+            const { queryParams } = Linking.parse(result.url);
+            const Token = queryParams?.token;
+            const tokenValue = Array.isArray(Token) ? Token[0] : Token;
+    
+            if (tokenValue) {
+              // 5. Store API token securely on device
+              await SecureStore.setItemAsync('userToken', tokenValue);
+              
+              Alert.alert('Success', 'Logged in with Google successfully!');
+              
+              // Navigate to main app screen (e.g., Home)
+              // navigation.navigate('Home');
+            } else {
+              Alert.alert('Error', 'Token not found in login callback response.');
+            }
+          }
+        } catch (error) {
+          console.error('Google Auth Error:', error);
+          Alert.alert('Authentication Failed', 'An error occurred during Google Sign-In.');
+        } finally {
+          setLoader1(false);
+        }
   }
 
   const getChatHistory = async () => {
@@ -100,10 +142,10 @@ export default function SideTab() {
         {loader1 ? (
           <ActivityIndicator size={"large"} color={"black"} />
         ) : (
-        <Link onPress={handleGoogleSignIn} href="http://127.0.0.1:8000/api/auth/google">
+        <TouchableOpacity onPress={handleGoogleLogin}>
           <Icon name="google" size={30} color="black" />
           <Text className=" ml-2 text-lg color-black">Another Account</Text>
-        </Link>
+        </TouchableOpacity>
         )}
       </View>
       <View className="text-lg flex-column justify-center items-center h-full">

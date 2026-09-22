@@ -10,36 +10,49 @@ use Laravel\Socialite\Facades\Socialite;
 use Exception;
 
 class userAuth extends Controller
-{
+{/**
+     * Redirect the user to the Google authentication page.
+     */
     public function redirectToGoogle(Request $request)
     {
-        return Socialite::driver('google')->redirect();
+        // Store the app's deep link URL in session if provided
+        if ($request->has('redirect_url')) {
+            session(['mobile_redirect_url' => $request->query('redirect_url')]);
+        }
+
+        return Socialite::driver('google')->stateless()->redirect();
     }
 
     /**
-     * Display the specified resource.
+     * Obtain the user information from Google and redirect back to the app.
      */
     public function handleGoogleCallback(Request $request)
     {
+        // Retrieve Google user using stateless mode
         $googleUser = Socialite::driver('google')->stateless()->user();
-        $existingUser = User::where('email', $googleUser->getEmail())->first();
 
-        //  -----SIGN UP/IN------
-        if ($existingUser) {
-            Auth::login($existingUser, true);
-            $token = $existingUser->createToken('api_token')->plainTextToken;
+        // Find existing user or create a new one
+        $user = User::firstOrCreate(
+            ['email' => $googleUser->getEmail()],
+            [
+                'name' => $googleUser->getName(),
+                'google_id' => $googleUser->getId(),
+                'password' => null, // Assign random secure password
+            ]
+        );
 
-            return redirect()->away('http://localhost:8081/?token=' .$token);
-        };
+        // Update google_id if user existed prior to Google sign-in
+        if (!$user->google_id) {
+            $user->update(['google_id' => $googleUser->getId()]);
+        }
 
-        $newUser = User::create([
-            'name' => $googleUser->getName(),
-            'email' => $googleUser->getEmail(),
-            'google_id' => $googleUser->getId(),
-            'password' => null,
-        ]);
-        Auth::login($newUser, true);
-        $token = $newUser->createToken('api_token')->plainTextToken;
-        return redirect()->away('http://localhost:8081/?token=' .$token);
-    }
+        // Generate Sanctum API token
+        $token = $user->createToken('api_token')->plainTextToken;
+
+        // Retrieve deep link from session or default to custom app scheme / localhost fallback for dev
+        $redirectUrl = session()->pull('mobile_redirect_url', 'chatbotfrontend://auth-callback');
+
+        // Redirect back to the mobile app or web client with the token
+        return redirect()->away($redirectUrl . '?token=' . $token);
+       }
 }

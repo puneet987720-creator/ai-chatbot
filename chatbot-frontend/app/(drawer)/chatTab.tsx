@@ -76,7 +76,11 @@ export default function ChatTab() {
           title: content,
           id: res.data.conversation[0].conversation_id
         };
-      setChatHistory(prev => [HistoryResponse, ...prev]);
+       if (chatHistory.some(item => item.id === HistoryResponse.id)) {
+         setChatHistory(prev=>[...prev]);
+      }else{
+        setChatHistory(prev => [HistoryResponse, ...prev]);
+      }
 
       if (!conversation_id && res.data.conversation[0].conversation_id) {
         console.log(res.data.conversation[0].conversation_id);
