@@ -49,10 +49,14 @@ class userAuth extends Controller
         // Generate Sanctum API token
         $token = $user->createToken('api_token')->plainTextToken;
 
-        // Retrieve deep link from session or default to custom app scheme / localhost fallback for dev
-        $redirectUrl = session()->pull('mobile_redirect_url', 'chatbotfrontend://auth-callback');
+       // Retrieve saved target URL (Defaults to mobile scheme, falls back to web dev server)
+        $defaultRedirect = config('app.env') === 'local' 
+            ? 'http://localhost:8081/auth-callback' 
+            : 'myapp://auth-callback';
 
-        // Redirect back to the mobile app or web client with the token
+        $redirectUrl = session()->pull('auth_redirect_url',$defaultRedirect);
+
+        // Redirect back to either the web page or mobile app
         return redirect()->away($redirectUrl . '?token=' . $token);
        }
 }
