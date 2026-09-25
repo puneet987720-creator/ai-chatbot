@@ -55,7 +55,7 @@ class userAuth extends Controller
         $token = $user->createToken('api_token')->plainTextToken;
 
         $defaultRedirect = app()->environment('local')
-            ? 'http://localhost:8081/auth-callback'
+            ? 'https://ai-chatbot-ten-murex.vercel.app/auth-callback'
             : 'chatbotfrontend://auth-callback';
 
         $redirectUrl = $request->query('redirect_url')
