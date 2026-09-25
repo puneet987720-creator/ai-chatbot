@@ -10,17 +10,22 @@ use Laravel\Socialite\Facades\Socialite;
 use Exception;
 
 class userAuth extends Controller
-{/**
+{
+    /**
      * Redirect the user to the Google authentication page.
      */
     public function redirectToGoogle(Request $request)
     {
-        // Store the app's deep link URL in session if provided
-        if ($request->has('redirect_url')) {
-            session(['mobile_redirect_url' => $request->query('redirect_url')]);
+        $redirectUrl = $request->input('redirect_url') ?? $request->query('redirect_url');
+
+        if ($redirectUrl) {
+            session()->put('auth_redirect_url', $redirectUrl);
+            session()->put('mobile_redirect_url', $redirectUrl);
         }
 
-        return Socialite::driver('google')->stateless()->redirect();
+        $redirect = Socialite::driver('google')->stateless()->redirect();
+
+        return $redirect;
     }
 
     /**
@@ -37,7 +42,7 @@ class userAuth extends Controller
             [
                 'name' => $googleUser->getName(),
                 'google_id' => $googleUser->getId(),
-                'password' => null, // Assign random secure password
+                'password' => null,
             ]
         );
 
@@ -49,14 +54,29 @@ class userAuth extends Controller
         // Generate Sanctum API token
         $token = $user->createToken('api_token')->plainTextToken;
 
-       // Retrieve saved target URL (Defaults to mobile scheme, falls back to web dev server)
-        $defaultRedirect = config('app.env') === 'local' 
-            ? 'http://localhost:8081/auth-callback' 
-            : 'myapp://auth-callback';
+        $defaultRedirect = app()->environment('local')
+            ? 'http://localhost:8081/auth-callback'
+            : 'chatbotfrontend://auth-callback';
 
-        $redirectUrl = session()->pull('auth_redirect_url',$defaultRedirect);
+        $redirectUrl = $request->query('redirect_url')
+            ?? session()->pull('auth_redirect_url', session()->pull('mobile_redirect_url', $defaultRedirect));
 
+        if (empty($redirectUrl)) {
+            $redirectUrl = $defaultRedirect;
+        }
+        // $redirectUrl = session()->pull('auth_redirect_url',$defaultRedirect);
         // Redirect back to either the web page or mobile app
-        return redirect()->away($redirectUrl . '?token=' . $token);
-       }
+        // return redirect()->away($redirectUrl . '?token=' . $token);
+        $callbackUrl = $this->buildCallbackUrl($redirectUrl, $token);
+
+        return redirect()->away($callbackUrl);
+    }
+
+    protected function buildCallbackUrl(string $redirectUrl, string $token): string
+    {
+        $cleanUrl = rtrim($redirectUrl, '?&');
+        $separator = str_contains($cleanUrl, '?') ? '&' : '?';
+
+        return $cleanUrl . $separator . 'token=' . urlencode($token);
+    }
 }

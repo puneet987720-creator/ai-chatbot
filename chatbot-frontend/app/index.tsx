@@ -48,7 +48,7 @@ export default function Index() {
     try {
       setLoader(true);
 
-      // 1. Generate deep link target: "myapp://auth-callback"
+      // 1. Generate deep link target using the app scheme configured in app.json
       const redirectUrl = Linking.createURL('auth-callback');
 
       // 2. Build full Laravel endpoint URL passing target deep link as parameter
