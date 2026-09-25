@@ -1,4 +1,4 @@
-import { View,Alert, FlatList, Text, ActivityIndicator, TouchableOpacity } from "react-native";
+import { View,Alert, FlatList, Text, ActivityIndicator, TouchableOpacity, Platform } from "react-native";
 import { useState, useEffect, useCallback, useContext } from "react";
 import { Link } from "expo-router";
 import * as WebBrowser from 'expo-web-browser';
@@ -12,6 +12,21 @@ import api from "../../api/chatBot";
 import RoboIcon from "@expo/vector-icons/FontAwesome6";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ChatContext } from "@/contexts/chatContext";
+
+const saveAuthToken = async (value: string) => {
+  try {
+    if (typeof SecureStore?.setItemAsync === 'function') {
+      await SecureStore.setItemAsync('userToken', value);
+      return;
+    }
+  } catch (error) {
+    console.warn('SecureStore failed, falling back to localStorage', error);
+  }
+
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('userToken', value);
+  }
+};
 
 type ChatHistoryItem = {
   title: string;
@@ -44,43 +59,42 @@ export default function SideTab() {
   };
 
   const handleGoogleLogin = async () => {
-     try {
-          setLoader1(true);
-    
-          // 1. Generate deep link target: "myapp://auth-callback"
-          const redirectUrl = Linking.createURL('auth-callback');
-    
-          // 2. Build full Laravel endpoint URL passing target deep link as parameter
-          const authUrl = `${LARAVEL_API_URL}/auth/google?redirect_url=${encodeURIComponent(redirectUrl)}`;
-    
-          // 3. Open in-app browser session and await user login
-          const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
-    
-          // 4. Process returning deep-link URL
-          if (result.type === 'success' && result.url) {
-            const { queryParams } = Linking.parse(result.url);
-            const Token = queryParams?.token;
-            const tokenValue = Array.isArray(Token) ? Token[0] : Token;
-    
-            if (tokenValue) {
-              // 5. Store API token securely on device
-              await SecureStore.setItemAsync('userToken', tokenValue);
-              
-              Alert.alert('Success', 'Logged in with Google successfully!');
-              
-              // Navigate to main app screen (e.g., Home)
-              // navigation.navigate('Home');
-            } else {
-              Alert.alert('Error', 'Token not found in login callback response.');
-            }
-          }
-        } catch (error) {
-          console.error('Google Auth Error:', error);
-          Alert.alert('Authentication Failed', 'An error occurred during Google Sign-In.');
-        } finally {
-          setLoader1(false);
+    try {
+      setLoader1(true);
+
+      const redirectUrl =
+        Platform.OS === 'web'
+          ? `${window.location.origin}/auth-callback`
+          : 'chatbotfrontend://auth-callback';
+
+      const authUrl = `${LARAVEL_API_URL}/auth/google?redirect_url=${encodeURIComponent(redirectUrl)}`;
+
+      if (Platform.OS === 'web') {
+        window.location.href = authUrl;
+        return;
+      }
+
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
+
+      if (result.type === 'success' && result.url) {
+        const { queryParams } = Linking.parse(result.url);
+        const tokenParam = queryParams?.token;
+        const tokenValue = Array.isArray(tokenParam) ? tokenParam[0] : tokenParam;
+
+        if (tokenValue) {
+          await saveAuthToken(tokenValue);
+          Alert.alert('Success', 'Logged in with Google successfully!');
+        } else {
+          Alert.alert('Error', 'Token not found in login callback response.');
         }
-  }
+      }
+    } catch (error) {
+      console.error('Google Auth Error:', error);
+      Alert.alert('Authentication Failed', 'An error occurred during Google Sign-In.');
+    } finally {
+      setLoader1(false);
+    }
+  };
 
   const getChatHistory = async () => {
     try {

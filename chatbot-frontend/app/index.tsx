@@ -1,4 +1,4 @@
-import {TouchableOpacity, Text, View, ActivityIndicator, Alert } from "react-native";
+import {TouchableOpacity, Text, View, ActivityIndicator, Alert, Platform } from "react-native";
 import { useState, useEffect } from "react";
 import { Link } from "expo-router";
 import Icon from "@expo/vector-icons/FontAwesome";
@@ -9,6 +9,21 @@ import * as Linking from 'expo-linking';
 import * as SecureStore from 'expo-secure-store';
 import {useRoute} from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const saveAuthToken = async (value: string) => {
+  try {
+    if (typeof SecureStore?.setItemAsync === 'function') {
+      await SecureStore.setItemAsync('userToken', value);
+      return;
+    }
+  } catch (error) {
+    console.warn('SecureStore failed, falling back to localStorage', error);
+  }
+
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('userToken', value);
+  }
+};
 
 WebBrowser.maybeCompleteAuthSession();
 // REPLACE WITH YOUR LIVE LARAVEL API DOMAIN
@@ -48,29 +63,28 @@ export default function Index() {
     try {
       setLoader(true);
 
-      // 1. Generate deep link target using the app scheme configured in app.json
-      const redirectUrl = Linking.createURL('auth-callback');
+      const redirectUrl =
+        Platform.OS === 'web'
+          ? `${window.location.origin}/auth-callback`
+          : 'chatbotfrontend://auth-callback';
 
-      // 2. Build full Laravel endpoint URL passing target deep link as parameter
       const authUrl = `${LARAVEL_API_URL}/auth/google?redirect_url=${encodeURIComponent(redirectUrl)}`;
 
-      // 3. Open in-app browser session and await user login
+      if (Platform.OS === 'web') {
+        window.location.href = authUrl;
+        return;
+      }
+
       const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
 
-      // 4. Process returning deep-link URL
       if (result.type === 'success' && result.url) {
         const { queryParams } = Linking.parse(result.url);
-        const Token = queryParams?.token;
-        const tokenValue = Array.isArray(Token) ? Token[0] : Token;
+        const tokenParam = queryParams?.token;
+        const tokenValue = Array.isArray(tokenParam) ? tokenParam[0] : tokenParam;
 
         if (tokenValue) {
-          // 5. Store API token securely on device
-          await SecureStore.setItemAsync('userToken', tokenValue);
-          
+          await saveAuthToken(tokenValue);
           Alert.alert('Success', 'Logged in with Google successfully!');
-          
-          // Navigate to main app screen (e.g., Home)
-          // navigation.navigate('Home');
         } else {
           Alert.alert('Error', 'Token not found in login callback response.');
         }
