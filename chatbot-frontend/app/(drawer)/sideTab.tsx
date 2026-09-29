@@ -157,8 +157,10 @@ export default function SideTab() {
           <ActivityIndicator size={"large"} color={"black"} />
         ) : (
         <TouchableOpacity onPress={handleGoogleLogin}>
+          <View className="flex-row items-center">
           <Icon name="google" size={30} color="black" />
           <Text className=" ml-2 text-lg color-black">Another Account</Text>
+          </View>
         </TouchableOpacity>
         )}
       </View>
