@@ -52,7 +52,7 @@ class ChatbotController extends Controller
 
         $systemMessage = [
             'role' => 'model',
-            'content' => " you are a helpful assistant. Use the provided context to answer questions.\n\nContext:\n{$context}"
+            'content' => " Use the provided context when available. If the context does not contain the answer, use your own general knowledge to help the user.\n\nContext:\n{$context}"
         ];
 
         $history = $conversation->messages()
