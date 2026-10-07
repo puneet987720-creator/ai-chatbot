@@ -52,7 +52,8 @@ class ChatbotController extends Controller
 
         $systemMessage = [
             'role' => 'model',
-            'content' => "Answer the user's latest query directly. Use prior conversation context only when relevant to the current question. If the user shifts the topic, pivot immediately without referencing previous context.\n\nContext:\n{$context}"
+            'content' => "Answer the user's latest query directly. CRITICAL: If the user's input contains multiple run-on questions glued together without spaces or punctuation (e.g., questiononequestiontwo), ignore all questions except the absolute last one. Use prior conversation context only when relevant to the current question. 
+            If the user shifts the topic, pivot immediately without referencing previous context..\n\nContext:\n{$context}"
         ];
 
         $history = $conversation->messages()
