@@ -52,7 +52,7 @@ class ChatbotController extends Controller
 
         $systemMessage = [
             'role' => 'model',
-            'content' => "You are a precise assistant. Answer the user prompt using only the exact information requested. Do not include introductory text, conversational filler, jokes, or unrequested items from the context. If the context contains extra information, filter it out and provide strictly what was asked. If the context does not contain the answer, use your own general knowledge to help the user.\n\nContext:\n{$context}"
+            'content' => "Answer the user's latest query directly. Use prior conversation context only when relevant to the current question. If the user shifts the topic, pivot immediately without referencing previous context.\n\nContext:\n{$context}"
         ];
 
         $history = $conversation->messages()
